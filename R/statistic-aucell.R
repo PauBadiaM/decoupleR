@@ -7,6 +7,7 @@
 #' @inheritParams .decoupler_mat_format
 #' @inheritParams .decoupler_network_format
 #' @param nCores Number of cores to use for computation.
+#' @param weights Whether is network weighted
 #' 
 #' @family decoupleR statistics
 #' @export
@@ -24,6 +25,8 @@ run_aucell <- function(mat,
                        network,
                        .source = .data$tf,
                        .target = .data$target,
+                       .mor = .data$mor,
+                       .likelihood = .data$likelihood,
                        weights = FALSE,
                        nCores = 1) {
   
@@ -33,8 +36,14 @@ run_aucell <- function(mat,
     if (-1 %in% network$mor | weights){ 
     # Analysis ----------------------------------------------------------------
     network %>%
-      filter(target %in% rownames(mat)) %>% # Overlap between genes in the network and genes in the expression matrix
-      group_by(tf) %>%
+      convert_f_defaults(
+        tf = {{ .source }},
+        target = {{ .target }},
+        mor = {{ .mor }},
+        likelihood = {{ .likelihood }}
+      ) %>%
+      filter(.data$target %in% rownames(mat)) %>% # Overlap between genes in the network and genes in the expression matrix
+      group_by(.data$tf) %>%
       group_modify(~ .one_TF_aucell_mor(.x, mat, nCores=nCores), .keep = TRUE) %>%
       pivot_longer(-tf , names_to = "condition",  values_to = "score") %>%
       add_column(statistic = "aucell", .before = 1)
